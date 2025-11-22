@@ -11,7 +11,7 @@ from pathlib import Path
 # searching for all venue URLs for each city from 1 to 120 in Hudle
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def extract_all_city_venues(start_city=120, end_city=150, output_file='hudle_all_city_venue_urls.xlsx'):
+def extract_all_city_venues(start_city=0, end_city=150, output_file='hudle_all_city_venue_urls.xlsx'):
     session = requests.Session()
     retries = Retry(total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
     session.mount('https://', HTTPAdapter(max_retries=retries))
