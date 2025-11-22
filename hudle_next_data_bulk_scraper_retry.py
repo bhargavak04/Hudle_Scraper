@@ -1,4 +1,3 @@
-    
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -59,14 +58,27 @@ def extract_venue_details_from_next_data(url, max_retries=3):
 
     soup = BeautifulSoup(response.text, "html.parser")
     script = soup.find("script", {"id": "__NEXT_DATA__", "type": "application/json"})
-    if not script:
-        return {"Venue URL": url, "Error": "No __NEXT_DATA__ tag found"}
+    if not script or not script.string:
+        return {"Venue URL": url, "Error": "No __NEXT_DATA__ tag found or empty"}
 
     try:
         json_data = json.loads(script.string)
-        venue = json_data["props"]["pageProps"]["venueDetails"]
-    except Exception as e:
-        return {"Venue URL": url, "Error": str(e)}
+        # Safely access nested dictionary structure
+        props = json_data.get("props", {})
+        page_props = props.get("pageProps", {})
+        venue = page_props.get("venueDetails")
+    except (json.JSONDecodeError, KeyError, TypeError) as e:
+        return {"Venue URL": url, "Error": f"JSON parsing error: {str(e)}"}
+    
+    # Check if venue data exists
+    if not venue:
+        # Extract contact information from HTML even if venue is None
+        html_contacts = extract_contact_from_html(response.text)
+        return {
+            "Venue URL": url,
+            "Error": "venueDetails is None or missing",
+            "html_contacts": ", ".join(html_contacts) if html_contacts else None
+        }
     
     # Extract contact information from HTML
     html_contacts = extract_contact_from_html(response.text)
@@ -119,8 +131,15 @@ def extract_venue_details_from_next_data(url, max_retries=3):
 
 def main():
     excel_file = r"C:\Users\bharg\Downloads\Sportomic_AI\Received\hudle_all_city_venue_urls.xlsx"
-    df = pd.read_excel(excel_file, usecols=[1], engine="openpyxl").dropna().drop_duplicates()
-    df.columns = ["Venue URL"]
+    try:
+        df = pd.read_excel(excel_file, usecols=[1], engine="openpyxl").dropna().drop_duplicates()
+        df.columns = ["Venue URL"]
+    except FileNotFoundError:
+        print(f"❌ Error: File not found: {excel_file}")
+        return
+    except Exception as e:
+        print(f"❌ Error reading Excel file: {e}")
+        return
 
     all_data = []
     for idx, row in df.iterrows():
@@ -149,11 +168,17 @@ def main():
         time.sleep(1)
 
         if (idx + 1) % 20 == 0:
-            pd.DataFrame(all_data).to_excel("hudle_venue_next_data_autosave.xlsx", index=False, engine="openpyxl")
-            print(f"💾 Auto-saved after {idx + 1} venues")
+            try:
+                pd.DataFrame(all_data).to_excel("hudle_venue_next_data_autosave.xlsx", index=False, engine="openpyxl")
+                print(f"💾 Auto-saved after {idx + 1} venues")
+            except Exception as e:
+                print(f"⚠️ Warning: Failed to auto-save: {e}")
 
-    pd.DataFrame(all_data).to_excel("hudle_venue_next_data_final.xlsx", index=False, engine="openpyxl")
-    print("✅ Data saved to 'hudle_venue_next_data_final.xlsx'")
+    try:
+        pd.DataFrame(all_data).to_excel("hudle_venue_next_data_final.xlsx", index=False, engine="openpyxl")
+        print("✅ Data saved to 'hudle_venue_next_data_final.xlsx'")
+    except Exception as e:
+        print(f"❌ Error saving final file: {e}")
 
 if __name__ == "__main__":
     main()
