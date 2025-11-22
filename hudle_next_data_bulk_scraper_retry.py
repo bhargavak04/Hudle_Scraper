@@ -130,7 +130,7 @@ def extract_venue_details_from_next_data(url, max_retries=3):
     return data
 
 def main():
-    excel_file = r"C:\Users\bharg\Downloads\Sportomic_AI\Received\hudle_all_city_venue_urls.xlsx"
+    excel_file="hudle_all_city_venue_urls.xlsx"
     try:
         df = pd.read_excel(excel_file, usecols=[1], engine="openpyxl").dropna().drop_duplicates()
         df.columns = ["Venue URL"]
